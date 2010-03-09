@@ -1,0 +1,92 @@
+h1. CyberSource plugin for CakePHP
+
+This plugin provides a CakePHP data source and library files to help you work with CyberSource's SOAP API in CakePHP.
+
+h2. Setting up a Database Configuration
+
+After putting the plugin in an appropriately named folder (_/plugins/cyber_source_), you will need to add a "database configuration" (data source configuration) to your @DATABASE_CONFIG@ in _/app/config/database.php_:
+
+<pre>
+<code>
+  var $cyberSource = array(
+      'datasource' => 'CyberSource.CyberSourceSource',
+      'merchantId' => '[Your Merchant ID]',
+      'transactionKey' => '[Your Transaction Key]',
+      'test' => true,
+  );
+</code>
+</pre>
+
+Obviously, insert your Merchant ID and Transaction Key for those fields. Above, I've included the code to access the test server for your transactions. Simple set this value to false when you're ready to enter production mode.
+
+h2. Creating a Model
+
+You will need to create a model with the new database configuration before you can start using CyberSource in your controller. I recommend creating a _CyberSource_ model like so:
+
+<pre>
+<code>
+  class CyberSource extends AppModel {
+
+      var $useTable = false;
+      var $useDbConfig = 'cyberSource';
+
+  }
+</code>
+</pre>
+
+You can add this model to the @$uses@ array of any controller.
+
+Alternatively, it's also possible to directly access the CyberSource data source from within your controller:
+
+<pre>
+<code>
+$this->CyberSource = ConnectionManager::getDataSource('cyberSource');
+</code>
+</pre>
+
+h2. Running transactions manually
+
+You can access the runTransaction method and provide it with a structured array of data to perform transactions:
+
+<pre>
+<code>
+  $result = $this->CyberSource->runTransaction(array(
+      'merchantReferenceCode' => 'TEST01',
+      
+      'ccAuthService' => array('run' => "true"),
+      
+      'billTo' => array(
+          'firstName' => "John",
+          'lastName' => "Doe",
+          'street1' => "1295 Charleston Road",
+          'city' => "Mountain View",
+          'state' => "CA",
+          'postalCode' => "94043",
+          'country' => "US",
+          'email' => "null@cybersource.com",
+          'ipAddress' => "10.7.111.111",
+      ),
+      
+      'card' => array(
+          'accountNumber' => "4111111111111111",
+          'expirationMonth' => "12",
+          'expirationYear' => "2020",
+      ),
+      
+      'purchaseTotals' => array('currency' => "USD"),
+      
+      'item' => array(
+          array(
+              'unitPrice' => "12.34",
+              'quantity' => "2",
+              'id' => "0",
+          ),
+          array(
+              'unitPrice' => "56.78",
+              'id' => "1",
+          ),
+      ),
+      
+  ));
+</code>
+</pre>
