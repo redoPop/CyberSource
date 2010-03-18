@@ -29,6 +29,14 @@ class CyberSourceSource extends DataSource {
 	public $client = null;
 
 /**
+ * Contains methods for building data.
+ *
+ * @var CyberSourceDataBuilders
+ * @access public
+ */
+	public $dataBuilders = null;
+
+/**
  * Connection status.
  *
  * @var boolean
@@ -37,12 +45,28 @@ class CyberSourceSource extends DataSource {
 	public $connected = false;
 
 /**
+ * Data.
+ *
+ * @var array
+ * @access public
+ */
+	public $data = array();
+
+/**
  * Description.
  *
  * @var string
  * @access public
  */
 	public $description = 'CyberSource DataSource';
+
+/**
+ * Result of last transaction.
+ *
+ * @var string
+ * @access public
+ */
+	public $lastResult = null;
 
 /**
  * Base configuration settings for CyberSource connection.
@@ -56,10 +80,11 @@ class CyberSourceSource extends DataSource {
 		'transactionKey' => '',
 		
 		// Common configuration settings:
-		'ignoreAvs' => true, # disregard Address Verification results and continue processing
-		'ignoreCv' => true, # disregard Card Verification results and continue processsing
+		'defaultCurrency' => 'USD',
+		'ignoreAvs' => false, # disregard Address Verification results and continue processing
+		'ignoreCv' => false, # disregard Card Verification results and continue processsing
 		'nexus' => '', # states where you have a physical presence, for tax purposes (e.g., "WI CA QC")
-		'vatRegNumber' => '', # VAT registration number for tax purposes
+		'sellerRegistration' => '', # your tax registration number
 		
 		// Other optional configuration settings:
 		'test' => false, # use test server instead of creating transactions live
@@ -67,6 +92,48 @@ class CyberSourceSource extends DataSource {
 		'version' => '1.26', # API version
 		'wsdl' => '', # force custom WSDL
 	);
+
+	public function addSubscription($options) {
+		$this->dataBuilders->buildRecurringSubscriptionRequest($options);
+		return $this->dataBuilders->execute($options);
+	}
+
+/**
+ * Expects the following:
+ *
+ * - orderId
+ * - amount
+ * - subscriptionId
+ * - card (only if subscriptionId is not provided)
+ * - billTo (only if subscriptionId is not provided)
+ * - persist (only if subscriptionId is not provided)
+ *
+ * @param $options
+ * @access public
+ */
+	public function authorize($options) {
+		$this->dataBuilders->buildAuthRequest($options);
+		return $this->dataBuilders->execute($options);
+	}
+
+	public function calculateTax($options) {
+		$this->dataBuilders->buildTaxCalculationRequest($options);
+		return $this->dataBuilders->execute($options);
+	}
+
+	public function capture($options) {
+		$this->dataBuilders->buildCaptureRequest($options);
+		return $this->dataBuilders->execute($options);
+	}
+
+/**
+ * Clear the data array for a new query.
+ *
+ * @access public
+ */
+	public function clear() {
+		$this->data = array();
+	}
 
 /**
  * Close SOAP connection.
@@ -105,27 +172,56 @@ class CyberSourceSource extends DataSource {
 		return $this->connected;
 	}
 
+	public function credit($options) {
+		$this->dataBuilders->buildCreditRequest($options);
+		return $this->dataBuilders->execute($options);
+	}
+
 /**
- * Parse result object returned by CyberSourceSoapClient.
+ * Public method to retrieve result from last transaction.
+ *
+ * @access public
+ */
+	public function getLastResult() {
+		return $this->lastResult;
+	}
+
+	public function getSubscription($options) {
+		$this->dataBuilders->buildRetrieveRequest($options);
+		return $this->dataBuilders->execute($options);
+	}
+
+/**
+ * Parse result object returned by CyberSourceSoapClient and save to
+ * $this->lastResult; return a small array of essential data.
  *
  * @param $result Result
- * @return Result
+ * @return array
  * @access public
  */
 	public function parseResult($result) {
+		$success = false;
+		$orderId = null;
+		$requestId = null;
+		$requestToken = null;
+		$subscriptionId = null;
+		$avsCode = null;
+		$cvCode = null;
 		
 		if (isset($result->ccAuthReply) && $this->config['useAppendices']) {
-			
+		
 			// Process address verification response code
 			if (isset($result->ccAuthReply->avsCode)) {
-				$result->ccAuthReply->avsDescription = CyberSourceAppendices::avsDescription($result->ccAuthReply->avsCode);
+				$avsCode = $result->ccAuthReply->avsCode;
+				$result->ccAuthReply->avsDescription = CyberSourceAppendices::avsDescription($avsCode);
 			}
-			
+		
 			// Process card verification response code
 			if (isset($result->ccAuthReply->cvCode)) {
-				$result->ccAuthReply->cvDescription = CyberSourceAppendices::cvDescription($result->ccAuthReply->cvCode);
+				$cvCode = $result->ccAuthReply->cvCode;
+				$result->ccAuthReply->cvDescription = CyberSourceAppendices::cvDescription($cvCode);
 			}
-			
+		
 			// Process auth factor code
 			if (isset($resul->ccAuthReply->authFactorCode)) {
 				$result->ccAuthReply->authFactorDescription = CyberSourceAppendices::authFactorDescription($result->ccAuthReply->authFactorCode);
@@ -137,11 +233,20 @@ class CyberSourceSource extends DataSource {
 			if ($this->config['useAppendices']) {
 				$result->reasonDescription = CyberSourceAppendices::reasonDescription($result->reasonCode);
 				if (!$result->reasonDescription) {
-					trigger_error("CuberSource Error: CyberSource returned unrecognized Reason code: \"{$result->reasonCode}\"", E_USER_WARNING);
+					trigger_error("CyberSource Error: CyberSource returned unrecognized Reason code: \"{$result->reasonCode}\"", E_USER_WARNING);
 				}
 			}
 			
-			if ($result->reasonCode != '100') {
+			if ($result->reasonCode == '100') {
+				$success = true;
+				
+				$orderId = @$result->merchantReferenceCode;
+				$requestId = @$result->requestID;
+				$requestToken = @$result->requestToken;
+				if (isset($result->paySubscriptionCreateReply)) {
+					@$subscriptionId = $result->paySubscriptionCreateReply->subscriptionID;
+				}
+			} else {
 				trigger_error("CybserSource Error: CyberSource denied request. Reason: {$result->reasonCode}" .
 					(isset($result->reasonDescription) ? ': '. $result->reasonDescription : ' ') . " - Request ID: {$result->requestID}",
 					E_USER_NOTICE
@@ -149,7 +254,27 @@ class CyberSourceSource extends DataSource {
 			}
 		}
 		
-		return $result;
+		// Save the result as lastResult
+		$this->lastResult = $result;
+		
+		// Return essential information
+		$parsedResult = array(
+			'success' => $success,
+			'message' => $result->reasonDescription,
+			'orderId' => $orderId,
+			'requestId' => $requestId,
+			'requestToken' => $requestToken,
+			'subscriptionId' => $subscriptionId,
+			'avsCode' => $avsCode,
+			'cvCode' => $cvCode,
+		);
+		
+		return $parsedResult;
+	}
+
+	public function purchase($options) {
+		$this->dataBuilders->buildPurchaseRequest($options);
+		return $this->dataBuilders->execute($options);
 	}
 
 /**
@@ -162,9 +287,7 @@ class CyberSourceSource extends DataSource {
 		$params = func_get_args();
 		
 		$method = array_shift($params);
-		if (count($params) && is_array($params[0])) {
-			$params[0] = $params[0][0];
-		}
+		$params = array_shift($params);
 		
 		return call_user_func_array(array(&$this, $method), $params);
 	}
@@ -175,35 +298,45 @@ class CyberSourceSource extends DataSource {
  * @param $data array
  * @return mixed Result on success, false on failure
  */
-	public function runTransaction($data) {
+	public function runTransaction($data = null) {
+		if (!is_null($data)) {
+			$this->data = $data;
+		}
+		
 		if (!$this->connected) {
 			trigger_error("CybserSource Error: Cannot call SOAP service--connection is closed!", E_USER_ERROR);
 			return false;
 		}
 		
-		if (!is_array($data)) {
+		if (!is_array($this->data)) {
 			trigger_error("CybserSource Error: Invalid \$data type supplied for SOAP query. Must be array!", E_USER_ERROR);
 			return false;
 		}
 		
-		$data = array_merge(array(
-			'merchantID' => $this->config['merchantId'],
-			'clientLibrary' => 'PHP',
-			'clientLibraryVersion' => phpversion(),
-			'clientEnvironment' => php_uname(),
-		), $data);
-		
 		try {
-			$result = $this->client->runTransaction($data);
+			$result = $this->client->runTransaction($this->data);
 		} catch (SoapFault $fault) {
 			trigger_error('CybserSource Error: Error in SOAP request: '.$fault->faultstring, E_USER_WARNING);
 		}
 		
-		if ($result) {
-			$result = $this->parseResult($result);
-		}
+		$this->clear();
 		
-		return $result;
+		return $this->parseResult($result);
+	}
+
+	public function unsubscribe($options) {
+		$this->dataBuilders->buildUnstoreRequest($options);
+		return $this->dataBuilders->execute($options);
+	}
+
+	public function updateSubscription($options) {
+		$this->dataBuilders->buildUpdateRequest($options);
+		return $this->dataBuilders->execute($options);
+	}
+
+	public function void($options) {
+		$this->dataBuilders->buildVoidRequest($options);
+		return $this->dataBuilders->execute($options);
 	}
 
 /**
@@ -235,6 +368,9 @@ class CyberSourceSource extends DataSource {
 			App::import('Core', 'CyberSource.CyberSourceAppendices');
 			$this->config['useAppendices'] = true;
 		}
+		
+		App::import('Core', 'CyberSource.CyberSourceDataBuilders');
+		$this->dataBuilders = new CyberSourceDataBuilders($this);
 		
 		App::import('Core', 'CyberSource.CyberSourceSoapClient');
 		$this->connect();

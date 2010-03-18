@@ -4,7 +4,7 @@ This plugin provides a CakePHP data source and library files to help you work wi
 
 h2. Setting up a Database Configuration
 
-After putting the plugin in an appropriately named folder (_/plugins/cyber_source_), you will need to add a "database configuration" (data source configuration) to your @DATABASE_CONFIG@ in _/app/config/database.php_:
+After putting the plugin in an appropriately named folder (_/plugins/cyber\_source_), you will need to add a "database configuration" (data source configuration) to your @DATABASE_CONFIG@ in _/app/config/database.php_:
 
 <pre>
 <code>
@@ -44,15 +44,73 @@ $this->CyberSource = ConnectionManager::getDataSource('cyberSource');
 </code>
 </pre>
 
-h2. Running transactions manually
+h2. Common Use
+
+The DataSource contains a number of methods to simplify common workflows.
+
+h3. Authorization & Capture
+
+h4. Authorization By Credit Card
+
+You can use the @authorize@ method to authorize a credit-card based transaction for later capture.
+
+*Example:*
+
+<pre>
+<code>
+	$this->CyberSource->authorize(array(
+		'amount' => '10',
+		'card' => array(
+			'number' => '4111111111111111',
+			'month' => '12',
+			'year' => '2020',
+			'type' => 'visa',
+			'csc' => '666',
+		),
+		'billTo' => array(
+			'firstName' => "John",
+			'lastName' => "Doe",
+			'street1' => "1295 Charleston Road",
+			'city' => "Mountain View",
+			'state' => "CA",
+			'postalCode' => "94043",
+			'country' => "US",
+			'email' => "null@cybersource.com",
+		),
+	));
+</code>
+</pre>
+
+h4. Authorization By Profile
+
+h4. Capture
+
+h2. Transaction Results
+
+All transaction methods return an associative array with the following keys:
+
+* _success_ - Boolean, TRUE if the transaction was successful.
+* _message_ - An explanation of the result; useful if the transaction failed.
+* _orderId_
+* _requestId_
+* _requestToken_
+* _subscriptionId_
+* _avsCode_ - Address Verification response.
+* _cvCode_ - Credit Card Verification response.
+
+Fields that don't apply to your transaction will be populated with NULL.
+
+The @orderId@, @requestId@, @requestToken@, and @subscriptionId@, are important values for identifying transactions and users. If you use profiles, the @subscriptionId@ should be associated with the relevant application user record for later use. If you're using authorization & capture, @requestId@ and @requestToken@ are used to identify the authorized request for capture.
+
+If you would like to see the verbose result data object returned by CyberSource, augmented with descriptions of common AVS and CV error codes, simply call the data source's getLastResult method: @$this->CyberSource->getLastResult()@
+
+h2. Running Transactions Manually
 
 You can access the runTransaction method and provide it with a structured array of data to perform transactions:
 
 <pre>
 <code>
   $result = $this->CyberSource->runTransaction(array(
-      'merchantReferenceCode' => 'TEST01',
-      
       'ccAuthService' => array('run' => "true"),
       
       'billTo' => array(
