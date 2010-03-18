@@ -182,11 +182,11 @@ class CyberSourceDataAdders extends Object {
 		));
 
 		if ($requestId) {
-			$data['captureRequestID'] = $requestId;
+			$data['ccCreditService']['captureRequestID'] = $requestId;
 		}
 
 		if ($requestId) {
-			$data['captureRequestToken'] = $requestToken;
+			$data['ccCreditService']['captureRequestToken'] = $requestToken;
 		}
 
 		$this->dataSource->data = array_merge($data, $this->dataSource->data);
@@ -249,7 +249,7 @@ class CyberSourceDataAdders extends Object {
 		}
 		
 		foreach ($items as $item) {
-			$this->dataSource->addItem($item);
+			$this->addItem($item);
 		}
 	}
 
@@ -333,7 +333,7 @@ class CyberSourceDataAdders extends Object {
 			$data['amount'] = '0.00';
 		}
 
-		$this->dataSource->data = array_merge($data, $this->dataSource->data['recurringSubscriptionInfo']);
+		$this->dataSource->data['recurringSubscriptionInfo'] = array_merge($data, $this->dataSource->data['recurringSubscriptionInfo']);
 	}
 
 /**
@@ -350,7 +350,7 @@ class CyberSourceDataAdders extends Object {
 			'frequency' => 'on-demand',
 		);
 
-		$this->dataSource->data = array_merge($data, $this->dataSource->data['recurringSubscriptionInfo']);
+		$this->dataSource->data['recurringSubscriptionInfo'] = array_merge($data, $this->dataSource->data['recurringSubscriptionInfo']);
 	}
 
 /**
@@ -411,8 +411,8 @@ class CyberSourceDataAdders extends Object {
 		$this->dataSource->data = array_merge(array(
 			'voidService' => array(
 				'run' => 'true',
-				'authRequestID' => $requestId,
-				'authRequestToken' => $requestToken,
+				'voidRequestID' => $requestId,
+				'voidRequestToken' => $requestToken,
 			),
 		), $this->dataSource->data);
 	}

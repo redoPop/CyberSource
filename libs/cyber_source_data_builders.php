@@ -101,7 +101,9 @@ class CyberSourceDataBuilders extends Object {
 	public function buildCreditRequest($options) {
 		extract($options);
 		
-		if (isset($subscriptionId)) {
+		if (isset($card)) {
+			$this->buildCreditRequestFromCreditCard($options);
+		} elseif (isset($subscriptionId)) {
 			$this->buildCreditRequestFromProfile($options);
 		} else {
 			$this->buildCreditRequestFromAuthorization($options);
@@ -115,10 +117,19 @@ class CyberSourceDataBuilders extends Object {
 		$this->dataAdders->addCreditService($requestId, $requestToken);
 	}
 	
+	public function buildCreditRequestFromCreditCard($options) {
+		extract($options);
+		
+		$this->dataAdders->addAddress($billTo);
+		$this->dataAdders->addPurchaseTotals($amount);
+		$this->dataAdders->addCreditCard($card);
+		$this->dataAdders->addCreditService();
+	}
+	
 	public function buildCreditRequestFromProfile($options) {
 		extract($options);
 		
-		$this->dataAdders->addPurchaseData($amount);
+		$this->dataAdders->addPurchaseTotals($amount);
 		$this->dataAdders->addRecurringSubscriptionInfo($subscriptionId);
 		$this->dataAdders->addCreditService();
 	}
@@ -137,7 +148,7 @@ class CyberSourceDataBuilders extends Object {
 		extract($options);
 		
 		$this->dataAdders->addAddress($billTo);
-		$this->dataAdders->addPurchaseData($amount);
+		$this->dataAdders->addPurchaseTotals($amount);
 		$this->dataAdders->addCreditCard($card);
 		$this->dataAdders->addPurchaseService();
 		$this->dataAdders->addBusinessRules();
@@ -151,7 +162,7 @@ class CyberSourceDataBuilders extends Object {
 	public function buildPurchaseRequestFromProfile($options) {
 		extract($options);
 		
-		$this->dataAdders->addPurchaseData($amount);
+		$this->dataAdders->addPurchaseTotals($amount);
 		$this->dataAdders->addRecurringSubscriptionInfo($subscriptionId);
 		$this->dataAdders->addPurchaseService();
 	}
@@ -203,7 +214,7 @@ class CyberSourceDataBuilders extends Object {
 		extract($options);
 		
 		$this->dataAdders->addAddress($billTo);
-		$this->dataAdders->addAddress($shipTo, true);
+		if (isset($shipTo)) $this->dataAdders->addAddress($shipTo, true);
 		$this->dataAdders->addItems($items);
 		$this->dataAdders->addPurchaseTotals();
 		$this->dataAdders->addTaxService();

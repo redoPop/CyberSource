@@ -313,6 +313,7 @@ class CyberSourceSource extends DataSource {
 			return false;
 		}
 		
+debug($this->data);
 		try {
 			$result = $this->client->runTransaction($this->data);
 		} catch (SoapFault $fault) {
@@ -334,6 +335,11 @@ class CyberSourceSource extends DataSource {
 		return $this->dataBuilders->execute($options);
 	}
 
+	/**
+	 * Void a capture or credit.
+	 *
+	 * Be aware that CyberSource cannot perform voids while in test mode
+	 */
 	public function void($options) {
 		$this->dataBuilders->buildVoidRequest($options);
 		return $this->dataBuilders->execute($options);
