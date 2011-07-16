@@ -1,10 +1,16 @@
 h1. CyberSource plugin for CakePHP
 
-This plugin provides a CakePHP data source and library files to help you work with CyberSource's SOAP API in CakePHP.
+This plugin provides tools to help you work with CyberSource's SOAP API in CakePHP, including a DataSource that contains wrappers for a lot of common workflows including authorization and capture, taxation, and subscription/profile handling, and a Model that makes working with CyberSource even easier and augments CakePHP's built in validation rules with results from CyberSource transactions.
 
-h2. Setting up a Database Configuration
+This plugin is released under the "MIT License":http://www.opensource.org/licenses/mit-license.php.
 
-After putting the plugin in an appropriately named folder (_/plugins/cyber\_source_), you will need to add a "database configuration" (data source configuration) to your @DATABASE_CONFIG@ in _/app/config/database.php_:
+h2. Installation
+
+Locate your CakePHP application's plugins folder (_/app/plugins_), then create a directory within that folder and name it _cyber\_source_. Move this plugin's files into that directory so that this README file sits in the path _/app/plugins/cyber\_source/README.textile_.
+
+h3. Setting up a Database Configuration
+
+Add the following database configuration to the @DATABASE_CONFIG@ class (_/app/config/database.php_):
 
 <pre>
 <code>
@@ -17,26 +23,17 @@ After putting the plugin in an appropriately named folder (_/plugins/cyber\_sour
 </code>
 </pre>
 
-Obviously, insert your Merchant ID and Transaction Key for those fields. Above, I've included the code to access the test server for your transactions. Simple set this value to false when you're ready to enter production mode.
+Don't forget to replace the placeholders above with your own Merchant ID and Transaction Key.
 
-h2. Creating a Model
+The code above also enables test mode, which causes transactions to be sent to CyberSource's test server instead of the production server. Simply set the value of the 'test' key to @false@ when you're ready to enter production mode.
 
-You will need to create a model with the new database configuration before you can start using CyberSource in your controller. I recommend creating a _CyberSource_ model like so:
+h3. Using the CyberSource Model
 
-<pre>
-<code>
-  class CyberSource extends AppModel {
+This documentation is written for use with the CyberSource Model included with this plugin (_models/cyber\_source.php_). Add @'CyberSource.CyberSource'@ to your Controller's @$uses@ array.
 
-      var $useTable = false;
-      var $useDbConfig = 'cyberSource';
+h4. Advanced Use
 
-  }
-</code>
-</pre>
-
-You can add this model to the @$uses@ array of any controller.
-
-Alternatively, it's also possible to directly access the CyberSource data source from within your controller:
+For advanced use, it's also possible to directly access the CyberSource DataSource from within a Controller without using the provided Model. For example:
 
 <pre>
 <code>
@@ -44,46 +41,259 @@ $this->CyberSource = ConnectionManager::getDataSource('cyberSource');
 </code>
 </pre>
 
-h2. Common Use
+This document doesn't cover direct access to the DataSource, but you can refer to the section on _Running Transactions Manually_, the comments in @models/datasources/cyber_source_source.php@, and the CyberSource Business Center Simple Order API manual, to learn more about using the CyberSource plugin this way and running transactions manually. For most common tasks, you'll probably find it easier to use the Model's helper methods instead.
 
-The DataSource contains a number of methods to simplify common workflows.
+h2. Examples
 
-h3. Authorization & Capture
+The Model included with this plugin contains a number of methods that simplify common CyberSource workflows.
 
-h4. Authorization By Credit Card
+All the examples in this section are written for use within Controller action methods, where @$this->CyberSource@ refers to the CyberSource Model in use by the Controller (see _Using the CyberSource Model_).
 
-You can use the @authorize@ method to authorize a credit-card based transaction for later capture.
+h3. Standard Purchase
 
-*Example:*
+The simplest and most common workflow for CyberSource transactions is a straightforward purchase based on credit card details.
+
+Within your controller, call the CyberSource Model's @purchase@ method:
 
 <pre>
 <code>
-	$this->CyberSource->authorize(array(
-		'amount' => '10',
-		'card' => array(
-			'number' => '4111111111111111',
-			'month' => '12',
-			'year' => '2020',
-			'type' => 'visa',
-			'csc' => '666',
-		),
-		'billTo' => array(
-			'firstName' => "John",
-			'lastName' => "Doe",
-			'street1' => "1295 Charleston Road",
-			'city' => "Mountain View",
-			'state' => "CA",
-			'postalCode' => "94043",
-			'country' => "US",
-			'email' => "null@cybersource.com",
-		),
-	));
+  $result = $this->CyberSource->purchase(array(
+      'orderId' => 'TEST01',
+      'amount' => '10',
+
+      'card_number' => '4111111111111111',
+      'card_month' => '12',
+      'card_year' => '2020',
+      'card_type' => 'visa',
+      'card_csc' => '666',
+
+      'billTo_firstName' => 'John',
+      'billTo_lastName' => 'Doe',
+      'billTo_street1' => '1295 Charleston Road',
+      'billTo_city' => 'Mountain View',
+      'billTo_state' => 'California',
+      'billTo_postalCode' => '94043',
+      'billTo_country' => 'US',
+      'billTo_email' => 'null@cybersource.com',
+  ),
+));
 </code>
 </pre>
 
+If no @orderId@ is provided, one will be generated and returned in the result array that comes back from CyberSource. (See also the section on _Transaction Results_.)
+
+h3. Authorization & Capture
+
+Authorization and capture is another common workflow for CyberSource transactions, wherein a user's credit card details are processed and the payment amount authorized prior to being captured -- useful for orders with delayed fulfillment.
+
+h4. Authorization By Credit Card
+
+You can use the CyberSource Model's @authorize@ method to authorize a credit-card based transaction for later capture:
+
+<pre>
+<code>
+  $this->CyberSource->authorize(array(
+      'amount' => '10',
+
+      'card_number' => '4111111111111111',
+      'card_month' => '12',
+      'card_year' => '2020',
+      'card_type' => 'visa',
+      'card_csc' => '666',
+
+      'billTo_firstName' => 'John',
+      'billTo_lastName' => 'Doe',
+      'billTo_street1' => '1295 Charleston Road',
+      'billTo_city' => 'Mountain View',
+      'billTo_state' => 'CA',
+      'billTo_postalCode' => '94043',
+      'billTo_country' => 'US',
+      'billTo_email' => 'null@cybersource.com',
+  ));
+</code>
+</pre>
+
+To capture the authorized transaction, you must store the requestId and requestToken returned in the result array. (See also the section on _Transaction Results_.)
+
 h4. Authorization By Profile
 
+It's possible to specify a subscriptionId to use for payment:
+
+<pre>
+<code>
+  $this->CyberSource->authorize(array(
+      'amount' => '10',
+      'subscriptionId' => '3108285309...', # (trimmed)
+  ));
+</code>
+</pre>
+
+See the _Subscriptions and Profiles_ section of this document for more information about setting up subscriptions, including "on demand" subscriptions (profiles).
+
 h4. Capture
+
+To capture your authorized transaction, provide the requestId and requestToken you stored from the result object returned after authorization, along with the amount for verification:
+
+<pre>
+<code>
+  $result = $this->CyberSource->capture(array(
+      'amount' => '10',
+      'requestId' => '3039073547290...', # (trimmed)
+      'requestToken' => 'Ahj//wSRSX88Ux32fd...', # (trimmed)
+  ));
+</code>
+</pre>
+
+h3. Subscriptions and Profiles
+
+It's sometimes useful to set up recurring payments (subscriptions) for users, or to keep their credit card details stored securely with CyberSource for later use (profiles, or "on demand" subscriptions).
+
+h4. Creating Subscriptions
+
+This documentation only covers creating on-demand subscriptions (or "profiles"). If you need to carry out recurring payments (e.g., weekly or monthly), it is recommended that you use an on-demand subscription and set up a scheduled task to handle recurring payments using the returned subscriptionId. This makes it much easier to handle cases where billing information expires.
+
+To create a new subscription, use the @addSubscription@ method:
+
+<pre>
+<code>
+  $result = $this->CyberSource->addSubscription(array(
+      'card_number' => '4111111111111111',
+      'card_month' => '12',
+      'card_year' => '2020',
+      'card_type' => 'visa',
+      'card_csc' => '666',
+
+      'billTo_firstName' => 'John',
+      'billTo_lastName' => 'Doe',
+      'billTo_street1' => '1295 Charleston Road',
+      'billTo_city' => 'Mountain View',
+      'billTo_state' => 'CA',
+      'billTo_postalCode' => '94043',
+      'billTo_country' => 'US',
+      'billTo_email' => 'null@cybersource.com',
+  ));
+</code>
+</pre>
+
+The result's subscriptionId field (per the _Transaction Results_ section of this document) will be populated. Keep this value and store it to access the subscription later.
+
+h4. Creating From Authorizations
+
+Similarly, it's possible to create a subscription from an authorization:
+
+<pre>
+<code>
+  $result = $this->CyberSource->addSubscription(array(
+      'requestId' => '3039073547290...', # (trimmed)
+      'requestToken' => 'Ahj//wSRSX88Ux32fd...', # (trimmed)
+  ));
+</code>
+</pre>
+
+Again, remember to store the subscriptionId that's returned in the results (see also _Transaction Results_).
+
+h4. Updating Subscriptions
+
+Provide the @updateSubscription@ method a subscriptionId along with the updated subscription details:
+
+<pre>
+<code>
+  $result = $this->CyberSource->updateSubscription(array(
+      'subscriptionId' => '3108285309...', # (trimmed)
+
+      'card_number' => '4111111111111111',
+      'card_month' => '12',
+      'card_year' => '2020',
+      'card_type' => 'visa',
+      'card_csc' => '666',
+
+      'billTo_firstName' => 'John',
+      'billTo_lastName' => 'Doe',
+      'billTo_street1' => '1295 Charleston Road',
+      'billTo_city' => 'Mountain View',
+      'billTo_state' => 'CA',
+      'billTo_postalCode' => '94043',
+      'billTo_country' => 'US',
+      'billTo_email' => 'null@cybersource.com',
+  ));
+</code>
+</pre>
+
+h4. Retrieving Subscription Data
+
+To get details about an existing subscription, simply call the @getSubscription@ method, passing it the subscriptionId you stored at the time you created the subscription:
+
+<pre>
+<code>
+  $this->CyberSource->getSubscription(array(
+      'subscriptionId' => '3108285309...', # (trimmed)
+  ));
+  $result = $this->CyberSource->getLastResult();
+</code>
+</pre>
+
+Note that we're getting the result object from the @getLastResult@ method. This is because the useful details about the subscription (e.g., @$result->paySubscriptionRetrieveReply->firstName@) don't fit into the standard result array returned by all methods. Simply debug this object if you aren't sure how to access it.
+
+h4. Canceling Subscriptions
+
+Subscriptions can be canceled via the @unsubscribe@ method:
+
+<pre>
+<code>
+  $result = $this->CyberSource->unsubscribe(array(
+      'subscriptionId' => '3108285309...', # (trimmed)
+  ));
+</code>
+</pre>
+
+h4. Profile Purchase
+
+If you're using on-demand subscriptions as profiles to keep credit card data secure, it's trivial to make purchases based on subscription data:
+
+<pre>
+<code>
+  $result = $this->CyberSource->purchase(array(
+      'amount' => '10',
+      'subscriptionId' => '3108285309...', # (trimmed)
+  ));
+</code>
+</pre>
+
+See also the _Authorization By Profile_ section of this document for details on how to set up authorization and capture using subcription data.
+
+h3. Calculating Tax
+
+To use CyberSource's tax calculator, call @calculateTax@ with the basic billing details and price to be taxed:
+
+<pre>
+<code>
+  $this->CyberSource->calculateTax(array(
+      'billTo_city' => "Mountain View",
+      'billTo_state' => "CA",
+      'billTo_postalCode' => "94043",
+      'billTo_country' => "US",
+
+      'items_price' => '10',
+  ));
+  $result = $this->CyberSource->getLastResult();
+</code>
+</pre>
+
+Note that we're getting the result object from the @getLastResult@ method. This is because the tax information (e.g., @$result->taxReply->totalTaxAmount@) don't fit into the standard result array returned by all methods. Simply debug this result object if you aren't sure how to access it.
+
+h3. Voiding Transactions
+
+To void a transaction, you need to know the orderId, requestId, and requestToken returned in that transaction's result array:
+
+<pre>
+<code>
+  $result = $this->CyberSource->void(array(
+      'orderId' => 'TEST01',
+      'requestId' => '3039073547290...', # (trimmed)
+      'requestToken' => 'Ahj//wSRSX88Ux32fd...', # (trimmed)
+  ));
+</code>
+</pre>
 
 h2. Transaction Results
 
@@ -91,14 +301,14 @@ All transaction methods return an associative array with the following keys:
 
 * _success_ - Boolean, TRUE if the transaction was successful.
 * _message_ - An explanation of the result; useful if the transaction failed.
-* _orderId_
-* _requestId_
-* _requestToken_
-* _subscriptionId_
+* _orderId_ - A reference to the order.
+* _requestId_ - The request ID -- important for authorization & capture.
+* _requestToken_ - The request token -- important for authorization & capture.
+* _subscriptionId_ - The ID of recurring payment or subscription, if relevant.
 * _avsCode_ - Address Verification response.
 * _cvCode_ - Credit Card Verification response.
 
-Fields that don't apply to your transaction will be populated with NULL.
+Items that don't apply to your transaction will be NULL.
 
 The @orderId@, @requestId@, @requestToken@, and @subscriptionId@, are important values for identifying transactions and users. If you use profiles, the @subscriptionId@ should be associated with the relevant application user record for later use. If you're using authorization & capture, @requestId@ and @requestToken@ are used to identify the authorized request for capture.
 
@@ -106,45 +316,53 @@ If you would like to see the verbose result data object returned by CyberSource,
 
 h2. Running Transactions Manually
 
-You can access the runTransaction method and provide it with a structured array of data to perform transactions:
+To gain more control over transactions, you can call the @runTransaction@ method directly, providing it a structured array of transaction data, instead of using underscores to represent the same structure as in requests to the Model methods:
 
 <pre>
 <code>
   $result = $this->CyberSource->runTransaction(array(
-      'ccAuthService' => array('run' => "true"),
-      
+      'orderId' => 'TEST02',
+
+      'ccAuthService' => array('run' => 'true'),
+
       'billTo' => array(
-          'firstName' => "John",
-          'lastName' => "Doe",
-          'street1' => "1295 Charleston Road",
-          'city' => "Mountain View",
-          'state' => "CA",
-          'postalCode' => "94043",
-          'country' => "US",
-          'email' => "null@cybersource.com",
-          'ipAddress' => "10.7.111.111",
+          'firstName' => 'John',
+          'lastName' => 'Doe',
+          'street1' => '1295 Charleston Road',
+          'city' => 'Mountain View',
+          'state' => 'CA',
+          'postalCode' => '94043',
+          'country' => 'US',
+          'email' => 'null@cybersource.com',
+          'ipAddress' => '10.7.111.111',
       ),
-      
+
       'card' => array(
-          'accountNumber' => "4111111111111111",
-          'expirationMonth' => "12",
-          'expirationYear' => "2020",
+          'accountNumber' => '4111111111111111',
+          'expirationMonth' => '12',
+          'expirationYear' => '2020',
       ),
-      
-      'purchaseTotals' => array('currency' => "USD"),
-      
+
+      'purchaseTotals' => array('currency' => 'USD'),
+
       'item' => array(
           array(
-              'unitPrice' => "12.34",
-              'quantity' => "2",
-              'id' => "0",
+              'unitPrice' => '12.34',
+              'quantity' => '2',
+              'id' => '0',
           ),
           array(
-              'unitPrice' => "56.78",
-              'id' => "1",
+              'unitPrice' => '56.78',
+              'id' => '1',
           ),
       ),
-      
+
   ));
 </code>
 </pre>
+
+Note the difference between this and the previous examples in this document. The underscore style of representing data structures used in previous examples applies only to requests made through the CyberSource Model. The underscore style makes it easier to pass transaction data directly from a form through the Model for validation before running the transaction. Because @runTransaction@ connects directly to the underlying DataSource, the underscore style is no longer available and nested arrays must be used instead.
+
+h2. License
+
+This plugin is released under the "MIT License":http://www.opensource.org/licenses/mit-license.php.

@@ -2,6 +2,8 @@
 /**
  * Methods used to build CyberSource requests.
  *
+ * @author joe bartlett (xo@jdbartlett.com)
+ * @license http://www.opensource.org/licenses/mit-license.php MIT License
  * @package CyberSource
  * @subpackage CyberSource.libs
  */
@@ -32,12 +34,12 @@ class CyberSourceDataBuilders extends Object {
  * - billTo (only if token is not provided)
  * - persist (only if token is not provided)
  *
- * @param $options
+ * @param array $options
  * @access public
  */
 	public function buildAuthRequest($options) {
 		extract($options);
-
+		
 		if (isset($card)) {
 			$this->buildAuthRequestFromCreditCard($options);
 		} else {
@@ -53,18 +55,18 @@ class CyberSourceDataBuilders extends Object {
  * - billTo
  * - persist
  *
- * @param $options
+ * @param array $options
  * @access public
  */
 	public function buildAuthRequestFromCreditCard($options) {
 		extract($options);
-
+		
 		$this->dataAdders->addAddress($billTo);
 		$this->dataAdders->addPurchaseTotals($amount);
 		$this->dataAdders->addCreditCard($card);
 		$this->dataAdders->addAuthService();
 		$this->dataAdders->addBusinessRules();
-
+		
 		if (isset($persist) && $persist) {
 			$this->dataAdders->addRecurringSubscription();
 			$this->dataAdders->addCreateService();
@@ -79,17 +81,21 @@ class CyberSourceDataBuilders extends Object {
  * - address
  * - persist
  *
- * @param $options
+ * @param array $options
  * @access public
  */
 	public function buildAuthRequestFromProfile($options) {
 		extract($options);
-
+		
 		$this->dataAdders->addPurchaseTotals($amount);
 		$this->dataAdders->addRecurringSubscriptionInfo($subscriptionId);
 		$this->dataAdders->addAuthService();
 	}
 
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildCaptureRequest($options) {
 		extract($options);
 		
@@ -98,6 +104,10 @@ class CyberSourceDataBuilders extends Object {
 		$this->dataAdders->addBusinessRules();
 	}
 
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildCreditRequest($options) {
 		extract($options);
 		
@@ -110,13 +120,21 @@ class CyberSourceDataBuilders extends Object {
 		}
 	}
 
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildCreditRequestFromAuthorization($options) {
 		extract($options);
 		
 		$this->dataAdders->addPurchaseTotals($amount);
 		$this->dataAdders->addCreditService($requestId, $requestToken);
 	}
-	
+
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildCreditRequestFromCreditCard($options) {
 		extract($options);
 		
@@ -125,7 +143,11 @@ class CyberSourceDataBuilders extends Object {
 		$this->dataAdders->addCreditCard($card);
 		$this->dataAdders->addCreditService();
 	}
-	
+
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildCreditRequestFromProfile($options) {
 		extract($options);
 		
@@ -134,6 +156,10 @@ class CyberSourceDataBuilders extends Object {
 		$this->dataAdders->addCreditService();
 	}
 
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildPurchaseRequest($options) {
 		extract($options);
 		
@@ -144,6 +170,10 @@ class CyberSourceDataBuilders extends Object {
 		}
 	}
 
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildPurchaseRequestFromCreditCard($options) {
 		extract($options);
 		
@@ -158,7 +188,11 @@ class CyberSourceDataBuilders extends Object {
 			$this->dataAdders->addCreateService();
 		}
 	}
-	
+
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildPurchaseRequestFromProfile($options) {
 		extract($options);
 		
@@ -173,12 +207,12 @@ class CyberSourceDataBuilders extends Object {
  * - requestId
  * - requestToken
  *
- * @param $options
+ * @param array $options
  * @access public
  */
 	public function buildRecurringSubscriptionRequest($options) {
 		extract($options);
-
+		
 		if (isset($card)) {
 			$this->buildRecurringSubscriptionRequestFromCreditCard($options);
 		} else {
@@ -186,23 +220,46 @@ class CyberSourceDataBuilders extends Object {
 		}
 	}
 
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildRecurringSubscriptionRequestFromAuthorization($options) {
 		extract($options);
 		
-		$this->dataAdders->addRecurringSubscription();
+		if (isset($frequency)) {
+			$this->dataAdders->addRecurringSubscription($frequency);
+		} else {
+			$this->dataAdders->addRecurringSubscription();
+		}
+		
 		$this->dataAdders->addCreateFromAuthService($requestId, $requestToken);
 	}
 
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildRecurringSubscriptionRequestFromCreditCard($options) {
 		extract($options);
 		
 		$this->dataAdders->addAddress($billTo);
 		$this->dataAdders->addPurchaseTotals();
 		$this->dataAdders->addCreditCard($card);
-		$this->dataAdders->addRecurringSubscription();
+		
+		if (isset($frequency)) {
+			$this->dataAdders->addRecurringSubscription($frequency);
+		} else {
+			$this->dataAdders->addRecurringSubscription();
+		}
+		
 		$this->dataAdders->addCreateService();
 	}
 
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildRetrieveRequest($options) {
 		extract($options);
 		
@@ -210,6 +267,10 @@ class CyberSourceDataBuilders extends Object {
 		$this->dataAdders->addRetrieveService();
 	}
 
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildTaxCalculationRequest($options) {
 		extract($options);
 		
@@ -221,6 +282,10 @@ class CyberSourceDataBuilders extends Object {
 		$this->dataAdders->addBusinessRules();
 	}
 
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildUnstoreRequest($options) {
 		extract($options);
 		
@@ -228,6 +293,10 @@ class CyberSourceDataBuilders extends Object {
 		$this->dataAdders->addUpdateService();
 	}
 
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildUpdateRequest($options) {
 		extract($options);
 		
@@ -239,16 +308,21 @@ class CyberSourceDataBuilders extends Object {
 		$this->dataAdders->addUpdateService();
 	}
 
+/**
+ * @param array $options
+ * @access public
+ */
 	public function buildVoidRequest($options) {
 		extract($options);
-	
+		
 		$this->dataAdders->addVoidService($requestId, $requestToken);
 	}
 
 /**
  * Completes a data request and executes it.
  *
- * @param $options
+ * @param array $options
+ * @return mixed result array on success, false on failure
  * @access public
  */
 	public function execute($options) {
@@ -259,7 +333,7 @@ class CyberSourceDataBuilders extends Object {
 /**
  * Constructor.
  *
- * @param array $config
+ * @param CyberSourceSource $dataSource
  * @access private
  */
 	public function __construct($dataSource) {
@@ -270,4 +344,3 @@ class CyberSourceDataBuilders extends Object {
 	}
 
 }
-?>

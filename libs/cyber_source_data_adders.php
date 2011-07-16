@@ -1,7 +1,9 @@
 <?php
 /**
- * Methods used to add data directly to the CyberSource Data Source.
+ * Methods used to add data directly to the CyberSource DataSource.
  *
+ * @author joe bartlett (xo@jdbartlett.com)
+ * @license http://www.opensource.org/licenses/mit-license.php MIT License
  * @package CyberSource
  * @subpackage CyberSource.libs
  */
@@ -28,8 +30,8 @@ class CyberSourceDataAdders extends Object {
  * - country
  * - email
  *
- * @param $address array of address information
- * @param $shipping true if this is a shipping address, otherwise false
+ * @param array $address array of address information
+ * @param boolean $shipping true if this is a shipping address, otherwise false
  * @access public
  */
 	public function addAddress($address, $shipping = false) {
@@ -56,15 +58,15 @@ class CyberSourceDataAdders extends Object {
  */
 	public function addBusinessRules() {
 		$data = array();
-
+		
 		if ($this->dataSource->config['ignoreAvs']) {
 			$data['ignoreAVSResult'] = 'true';
 		}
-
+		
 		if ($this->dataSource->config['ignoreCv']) {
 			$data['ignoreCVResult'] = 'true';
 		}
-
+		
 		if (!empty($data)) {
 			if (!isset($this->dataSource->data['businessRules'])) {
 				$this->dataSource->data['businessRules'] = array();
@@ -76,8 +78,8 @@ class CyberSourceDataAdders extends Object {
 /**
  * Capture an authorized transaction.
  *
- * @param $requestId authorized request ID
- * @param $requestToken token for authorization
+ * @param string $requestId authorized request ID
+ * @param string $requestToken token for authorization
  * @access public
  */
 	public function addCaptureService($requestId, $requestToken) {
@@ -93,19 +95,21 @@ class CyberSourceDataAdders extends Object {
 /**
  * Add subscription creation service to the request based on an authorization.
  *
+ * @param string $requestId authorized request ID
+ * @param string $requestToken token for authorization
  * @access public
  */
 	public function addCreateFromAuthService($requestId, $requestToken) {
 		if (!isset($this->dataSource->data['paySubscriptionCreateService'])) {
 			$this->dataSource->data['paySubscriptionCreateService'] = array();
 		}
-
+		
 		$data = array(
 			'run' => 'true',
 			'paymentRequestID' => $requestId,
 			'paymentRequestToken' => $requestToken,
 		);
-
+		
 		$this->dataSource->data['paySubscriptionCreateService'] = array_merge($data, $this->dataSource->data['paySubscriptionCreateService']);
 	}
 
@@ -131,24 +135,24 @@ class CyberSourceDataAdders extends Object {
  * - csc (credit card security code; include for verification checks)
  * - type (numeric, or "visa", "mastercard", "american_express", "discover", "diners_club", "jcb")
  *
- * @param $card card information
+ * @param array $card array of card information
  * @access public
  */
 	public function addCreditCard($card) {
 		if (!isset($this->dataSource->data['card'])) {
 			$this->dataSource->data['card'] = array();
 		}
-
+		
 		$data = array(
 			'accountNumber' => $card['number'],
 			'expirationMonth' => str_pad($card['month'], 2, "0", STR_PAD_LEFT),
 			'expirationYear' => $card['year'],
 		);
-
+		
 		if (isset($card['csc']) && !$this->dataSource->config['ignoreCv']) {
 			$data['cvNumber'] = $card['csc'];
 		}
-
+		
 		if (isset($card['type'])) {
 			$types = array(
 				'visa' => 1,
@@ -158,37 +162,37 @@ class CyberSourceDataAdders extends Object {
 				'diners_club' => 5,
 				'jcb' => 7,
 			);
-
+			
 			if (isset($types[$card['type']])) {
 				$card['type'] = $types[$card['type']];
 			}
-
+			
 			$data['cardType'] = str_pad($card['type'], 3, "0", STR_PAD_LEFT);
 		}
-
+		
 		$this->dataSource->data['card'] = array_merge($data, $this->dataSource->data['card']);
 	}
 
 /**
  * Add credit service to this transaction.
  *
- * @param $requestId authorized request ID
- * @param $requestToken token for authorization
+ * @param string $requestId authorized request ID
+ * @param string $requestToken token for authorization
  * @access public
  */
 	public function addCreditService($requestId = false, $requestToken = false) {
 		$data = array('ccCreditService' => array(
 			'run' => 'true',
 		));
-
+		
 		if ($requestId) {
 			$data['ccCreditService']['captureRequestID'] = $requestId;
 		}
-
+		
 		if ($requestId) {
 			$data['ccCreditService']['captureRequestToken'] = $requestToken;
 		}
-
+		
 		$this->dataSource->data = array_merge($data, $this->dataSource->data);
 	}
 
@@ -204,7 +208,7 @@ class CyberSourceDataAdders extends Object {
  * - tax (amount of tax to add to your request)
  * - price (price of item)
  *
- * @param $item details for one item
+ * @param array $item array of details for one item
  * @access public
  */
 	public function addItem($item) {
@@ -212,34 +216,35 @@ class CyberSourceDataAdders extends Object {
 			'productCode' => isset($item['code']) ? $item['code'] : 'default',
 			'quantity' => isset($item['quantity']) ? $item['quantity'] : 1,
 		);
-
+		
 		if (isset($item['name']) && !empty($item['name'])) {
 			$data['productName'] = $item['name'];
 		}
-
+		
 		if (isset($item['sku']) && !empty($item['sku'])) {
 			$data['productSKU'] = $item['sku'];
 		}
-
+		
 		if (isset($item['tax']) && !empty($item['tax'])) {
 			$data['taxAmount'] = $item['tax'];
 		}
-
+		
 		if (isset($item['price']) && $item['price'] >= 0) {
 			$data['unitPrice'] = $item['price'];
 		}
-
+		
 		if (!isset($this->dataSource->data['item'])) {
 			$this->dataSource->data['item'] = array();
 		}
+		
 		$this->dataSource->data['item'][] = $data;
 	}
 
 /**
  * Add an array of items to this request. Each item should conform to the
- * layout described in "items".
+ * layout described in addItem.
  *
- * @param $items array list of items
+ * @param array $items array list of items
  * @access public
  * @see CyberSourceSource::addItem
  */
@@ -256,17 +261,22 @@ class CyberSourceDataAdders extends Object {
 /**
  * Add merchant information to data.
  *
+ * The $orderId parameter is used to add the order ID generated by your
+ * system, so the order reference can be confirmed when examining past
+ * transactions.
+ *
+ * @param string $orderId merchant reference code for this order
  * @access public
  */
 	public function addMerchantData($orderId = false) {
 		if ($orderId) {
 			$this->dataSource->data['merchantReferenceCode'] = $orderId;
 		}
-
+		
 		if (!isset($this->dataSource->data['merchantReferenceCode'])) {
 			$this->dataSource->data['merchantReferenceCode'] = String::uuid();
 		}
-
+		
 		$this->dataSource->data = array_merge(array(
 			'merchantID' => $this->dataSource->config['merchantId'],
 			'clientLibrary' => 'PHP',
@@ -290,49 +300,51 @@ class CyberSourceDataAdders extends Object {
 /**
  * Add appropriate purchase totals to data.
  *
- * @param $total grand total including tax
+ * @param float $total grand total including tax
  * @access public
  */
 	public function addPurchaseTotals($total = 0) {
 		if (!isset($this->dataSource->data['purchaseTotals'])) {
 			$this->dataSource->data['purchaseTotals'] = array();
 		}
-
+		
 		$data = array(
 			'currency' => $this->dataSource->config['defaultCurrency'],
 		);
-
+		
 		if ($total > 0) {
 			$data['grandTotalAmount'] = $total;
 		}
-
+		
 		$this->dataSource->data['purchaseTotals'] = array_merge($data, $this->dataSource->data['purchaseTotals']);
 	}
 
 /**
  * Add information about an _existing_ recurring subscription.
  *
- * @param $identification string identifying this subscription
+ * @param string $subscriptionId string identifying this subscription
+ * @param boolean $cancel true if the subscription is being canceled
+ * @param boolean $includeAmount true to include the '0.00' amount required for cancellations
  * @access public
  */
 	public function addRecurringSubscriptionInfo($subscriptionId, $cancel = false, $includeAmount = false) {
 		if (!isset($this->dataSource->data['recurringSubscriptionInfo'])) {
 			$this->dataSource->data['recurringSubscriptionInfo'] = array();
 		}
-
+		
 		$data = array(
 			'subscriptionID' => $subscriptionId,
 		);
-
+		
 		if ($cancel) {
 			$data['status'] = 'cancel';
 			$includeAmount = true;
 		}
-
+		
 		if ($includeAmount) {
 			$data['amount'] = '0.00';
 		}
-
+		
 		$this->dataSource->data['recurringSubscriptionInfo'] = array_merge($data, $this->dataSource->data['recurringSubscriptionInfo']);
 	}
 
@@ -341,15 +353,19 @@ class CyberSourceDataAdders extends Object {
  *
  * @access public
  */
-	public function addRecurringSubscription() {
+	public function addRecurringSubscription($frequency = NULL) {
 		if (!isset($this->dataSource->data['recurringSubscriptionInfo'])) {
 			$this->dataSource->data['recurringSubscriptionInfo'] = array();
 		}
-
+		
+		if (empty($frequency)) {
+			$frequency = 'on-demand';
+		}
+		
 		$data = array(
-			'frequency' => 'on-demand',
+			'frequency' => $frequency,
 		);
-
+		
 		$this->dataSource->data['recurringSubscriptionInfo'] = array_merge($data, $this->dataSource->data['recurringSubscriptionInfo']);
 	}
 
@@ -373,19 +389,19 @@ class CyberSourceDataAdders extends Object {
 		if (!isset($this->dataSource->data['taxService'])) {
 			$this->dataSource->data['taxService'] = array();
 		}
-
+		
 		$data = array(
 			'run' => 'true',
 		);
-
+		
 		if (!empty($this->dataSource->config['nexus'])) {
 			$data['nexus'] = $this->dataSource->config['nexus'];
 		}
-
+		
 		if (!empty($this->dataSource->config['sellerRegistration'])) {
 			$data['sellerRegistration'] = $this->dataSource->config['sellerRegistration'];
 		}
-
+		
 		$this->dataSource->data['taxService'] = array_merge($data, $this->dataSource->data['taxService']);
 	}
 
@@ -403,8 +419,8 @@ class CyberSourceDataAdders extends Object {
 /**
  * Void a captured transaction.
  *
- * @param $requestId authorized request ID
- * @param $requestToken token for authorization
+ * @param string $requestId authorized request ID
+ * @param string $requestToken token for authorization
  * @access public
  */
 	public function addVoidService($requestId, $requestToken) {
@@ -420,7 +436,7 @@ class CyberSourceDataAdders extends Object {
 /**
  * Constructor.
  *
- * @param array $config
+ * @param CyberSourceSource $dataSource
  * @access private
  */
 	public function __construct($dataSource) {
@@ -428,4 +444,3 @@ class CyberSourceDataAdders extends Object {
 	}
 
 }
-?>

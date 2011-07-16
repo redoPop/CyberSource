@@ -2,6 +2,12 @@
 /**
  * CyberSource appendices for debug info.
  *
+ * This library contains indexes of CyberSource debug codes with
+ * corresponding descriptions. You may find them useful while testing and
+ * debugging your applications.
+ *
+ * @author joe bartlett (xo@jdbartlett.com)
+ * @license http://www.opensource.org/licenses/mit-license.php MIT License
  * @package CyberSource
  * @subpackage CyberSource.libs
  */
@@ -193,14 +199,14 @@ class CyberSourceAppendices extends Object {
  */
 	protected function _lookup($table, $code) {
 		$_this =& CyberSourceAppendices::getInstance();
-
+		
 		if (isset($_this->{$table}[$code])) {
 			$code = $_this->{$table}[$code];
 		} else {
 			$code = false;
 		}
+		
 		return $code;
 	}
 
 }
-?>

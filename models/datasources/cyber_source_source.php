@@ -5,16 +5,11 @@
  * Requires PHP 5.2.1, libxml2 2.6.23, openssl 0.9.8d with SOAP extensions
  * enabled in php.ini. CyberSource's SOAP Toolkits document has up-to-date
  * info on how to make sure your configuration meets these requirements:
+ *
  * http://www.cybersource.com/support_center/implementation/downloads/soap_api/
  *
  * @author joe bartlett (xo@jdbartlett.com)
- * @package CyberSource
- * @subpackage CyberSource.models.datasources
- */
-
-/**
- * CyberSource datasource.
- *
+ * @license http://www.opensource.org/licenses/mit-license.php MIT License
  * @package CyberSource
  * @subpackage CyberSource.models.datasources
  */
@@ -45,7 +40,8 @@ class CyberSourceSource extends DataSource {
 	public $connected = false;
 
 /**
- * Data.
+ * Data for the next transaction is added to this array until the transaction
+ * is ready to be sent.
  *
  * @var array
  * @access public
@@ -53,7 +49,7 @@ class CyberSourceSource extends DataSource {
 	public $data = array();
 
 /**
- * Description.
+ * Description of the DataSource.
  *
  * @var string
  * @access public
@@ -61,9 +57,9 @@ class CyberSourceSource extends DataSource {
 	public $description = 'CyberSource DataSource';
 
 /**
- * Result of last transaction.
+ * Cached result of previous transaction.
  *
- * @var string
+ * @var stdObject
  * @access public
  */
 	public $lastResult = null;
@@ -93,6 +89,11 @@ class CyberSourceSource extends DataSource {
 		'wsdl' => '', # force custom WSDL
 	);
 
+/**
+ * @param array $options
+ * @return mixed result array on success, false on failure
+ * @access public
+ */
 	public function addSubscription($options) {
 		$this->dataBuilders->buildRecurringSubscriptionRequest($options);
 		return $this->dataBuilders->execute($options);
@@ -108,7 +109,8 @@ class CyberSourceSource extends DataSource {
  * - billTo (only if subscriptionId is not provided)
  * - persist (only if subscriptionId is not provided)
  *
- * @param $options
+ * @param array $options
+ * @return mixed result array on success, false on failure
  * @access public
  */
 	public function authorize($options) {
@@ -116,11 +118,21 @@ class CyberSourceSource extends DataSource {
 		return $this->dataBuilders->execute($options);
 	}
 
+/**
+ * @param array $options
+ * @return mixed result array on success, false on failure
+ * @access public
+ */
 	public function calculateTax($options) {
 		$this->dataBuilders->buildTaxCalculationRequest($options);
 		return $this->dataBuilders->execute($options);
 	}
 
+/**
+ * @param array $options
+ * @return mixed result array on success, false on failure
+ * @access public
+ */
 	public function capture($options) {
 		$this->dataBuilders->buildCaptureRequest($options);
 		return $this->dataBuilders->execute($options);
@@ -138,6 +150,7 @@ class CyberSourceSource extends DataSource {
 /**
  * Close SOAP connection.
  *
+ * @return boolean true
  * @access public
  */
 	public function close() {
@@ -149,6 +162,7 @@ class CyberSourceSource extends DataSource {
 /**
  * Initialize the SOAP client for use.
  *
+ * @return boolean true if the service started successfully
  * @access public
  */
 	public function connect() {
@@ -164,14 +178,19 @@ class CyberSourceSource extends DataSource {
 		} catch (SoapFault $fault) {
 			trigger_error("CybserSource Error: Couldn't start SOAP service: " . $fault->faultstring, E_USER_WARNING);
 		}
-
+		
 		if ($this->client) {
 			$this->connected = true;
 		}
-
+		
 		return $this->connected;
 	}
 
+/**
+ * @param array $options
+ * @return mixed result array on success, false on failure
+ * @access public
+ */
 	public function credit($options) {
 		$this->dataBuilders->buildCreditRequest($options);
 		return $this->dataBuilders->execute($options);
@@ -180,12 +199,18 @@ class CyberSourceSource extends DataSource {
 /**
  * Public method to retrieve result from last transaction.
  *
+ * @return stdClass result object from last CyberSourceSoapClient transaction
  * @access public
  */
 	public function getLastResult() {
 		return $this->lastResult;
 	}
 
+/**
+ * @param array $options
+ * @return mixed result array on success, false on failure
+ * @access public
+ */
 	public function getSubscription($options) {
 		$this->dataBuilders->buildRetrieveRequest($options);
 		return $this->dataBuilders->execute($options);
@@ -195,7 +220,7 @@ class CyberSourceSource extends DataSource {
  * Parse result object returned by CyberSourceSoapClient and save to
  * $this->lastResult; return a small array of essential data.
  *
- * @param $result Result
+ * @param stdClass $result object from CyberSourceSoapClient transaction
  * @return array
  * @access public
  */
@@ -209,19 +234,19 @@ class CyberSourceSource extends DataSource {
 		$cvCode = null;
 		
 		if (isset($result->ccAuthReply) && $this->config['useAppendices']) {
-		
+			
 			// Process address verification response code
 			if (isset($result->ccAuthReply->avsCode)) {
 				$avsCode = $result->ccAuthReply->avsCode;
 				$result->ccAuthReply->avsDescription = CyberSourceAppendices::avsDescription($avsCode);
 			}
-		
+			
 			// Process card verification response code
 			if (isset($result->ccAuthReply->cvCode)) {
 				$cvCode = $result->ccAuthReply->cvCode;
 				$result->ccAuthReply->cvDescription = CyberSourceAppendices::cvDescription($cvCode);
 			}
-		
+			
 			// Process auth factor code
 			if (isset($resul->ccAuthReply->authFactorCode)) {
 				$result->ccAuthReply->authFactorDescription = CyberSourceAppendices::authFactorDescription($result->ccAuthReply->authFactorCode);
@@ -272,6 +297,11 @@ class CyberSourceSource extends DataSource {
 		return $parsedResult;
 	}
 
+/**
+ * @param array $options
+ * @return mixed result array on success, false on failure
+ * @access public
+ */
 	public function purchase($options) {
 		$this->dataBuilders->buildPurchaseRequest($options);
 		return $this->dataBuilders->execute($options);
@@ -280,7 +310,7 @@ class CyberSourceSource extends DataSource {
 /**
  * DataSource query abstraction.
  *
- * @return mixed Result on success, false on failure
+ * @return mixed result array on success, false on failure
  * @access public
  */
 	public function query() {
@@ -295,8 +325,8 @@ class CyberSourceSource extends DataSource {
 /**
  * Run a transaction through CyberSource.
  *
- * @param $data array
- * @return mixed Result on success, false on failure
+ * @param array $data
+ * @return mixed result array on success, false on failure
  */
 	public function runTransaction($data = null) {
 		if (!is_null($data)) {
@@ -313,7 +343,6 @@ class CyberSourceSource extends DataSource {
 			return false;
 		}
 		
-debug($this->data);
 		try {
 			$result = $this->client->runTransaction($this->data);
 		} catch (SoapFault $fault) {
@@ -325,21 +354,34 @@ debug($this->data);
 		return $this->parseResult($result);
 	}
 
+/**
+ * @param array $options
+ * @return mixed result array on success, false on failure
+ * @access public
+ */
 	public function unsubscribe($options) {
 		$this->dataBuilders->buildUnstoreRequest($options);
 		return $this->dataBuilders->execute($options);
 	}
 
+/**
+ * @param array $options
+ * @return mixed result array on success, false on failure
+ * @access public
+ */
 	public function updateSubscription($options) {
 		$this->dataBuilders->buildUpdateRequest($options);
 		return $this->dataBuilders->execute($options);
 	}
 
-	/**
-	 * Void a capture or credit.
-	 *
-	 * Be aware that CyberSource cannot perform voids while in test mode
-	 */
+/**
+ * Void a capture or credit.
+ *
+ * Be aware that CyberSource cannot perform voids while in test mode.
+ *
+ * @param array $options
+ * @access public
+ */
 	public function void($options) {
 		$this->dataBuilders->buildVoidRequest($options);
 		return $this->dataBuilders->execute($options);
@@ -383,4 +425,3 @@ debug($this->data);
 	}
 
 }
-?>
