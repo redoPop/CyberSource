@@ -1,3 +1,9 @@
+h1. Not Maintained
+
+It's been a while since I last worked with CakePHP or CyberSource, and I haven't kept this repository up-to-date with API changes.
+
+If you'd like to maintain a fork or know of another CakePHP project with the same goals, please shoot me an email and I'll drop a link here to point others in the right direction.
+
 h1. CyberSource plugin for CakePHP
 
 This plugin provides tools to help you work with CyberSource's SOAP API in CakePHP, including a DataSource that contains wrappers for a lot of common workflows including authorization and capture, taxation, and subscription/profile handling, and a Model that makes working with CyberSource even easier and augments CakePHP's built in validation rules with results from CyberSource transactions.
